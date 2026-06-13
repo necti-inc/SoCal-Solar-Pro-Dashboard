@@ -12,7 +12,7 @@ npm run dev
 
 Open [http://localhost:3001](http://localhost:3001)
 
-Sign in with your team access key: `ssp-leads-2026-a8f3c91d7e4b6f02`
+Sign in with the team password.
 
 ## Environment variables
 
