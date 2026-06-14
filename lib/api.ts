@@ -1,5 +1,6 @@
 import { config } from "./config"
 import type { Lead, LeadStats } from "./types"
+import { normalizeStatus } from "./types"
 
 function getApiKey(): string {
     if (typeof window === "undefined") return ""
@@ -41,12 +42,12 @@ export async function fetchLeads(params?: {
 
     const qs = query.toString()
     const data = await request<{ leads: Lead[] }>(`/leads${qs ? `?${qs}` : ""}`)
-    return data.leads
+    return data.leads.map((lead) => ({ ...lead, status: normalizeStatus(lead.status) }))
 }
 
 export async function fetchLead(id: string): Promise<Lead> {
     const data = await request<{ lead: Lead }>(`/leads/${id}`)
-    return data.lead
+    return { ...data.lead, status: normalizeStatus(data.lead.status) }
 }
 
 export async function fetchStats(): Promise<LeadStats> {
@@ -55,13 +56,19 @@ export async function fetchStats(): Promise<LeadStats> {
 
 export async function updateLead(
     id: string,
-    updates: Partial<Pick<Lead, "status" | "notes" | "priority" | "assignedTo">>
+    updates: Partial<Pick<Lead, "status" | "notes" | "priority" | "assignedTo">> & {
+        markContacted?: boolean
+    }
 ): Promise<Lead> {
     const data = await request<{ lead: Lead }>(`/leads/${id}`, {
         method: "PATCH",
         body: JSON.stringify(updates),
     })
-    return data.lead
+    return { ...data.lead, status: normalizeStatus(data.lead.status) }
+}
+
+export async function deleteLead(id: string): Promise<void> {
+    await request<{ ok: boolean }>(`/leads/${id}`, { method: "DELETE" })
 }
 
 export async function regenerateMessage(
@@ -72,7 +79,7 @@ export async function regenerateMessage(
         method: "POST",
         body: JSON.stringify({ status }),
     })
-    return data.lead
+    return { ...data.lead, status: normalizeStatus(data.lead.status) }
 }
 
 export function isAuthenticated(): boolean {

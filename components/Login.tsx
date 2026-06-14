@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { login, verifyApiKey } from "@/lib/api"
 import { config } from "@/lib/config"
+import { IconSun } from "./icons"
 
 interface LoginProps {
     onLogin: () => void
@@ -33,10 +34,25 @@ export default function Login({ onLogin }: LoginProps) {
     }
 
     return (
-        <div className="login-screen">
-            <form className="login-card" onSubmit={handleSubmit}>
+        <div className="auth-page">
+            <div className="auth-brand">
+                <div className="auth-brand__icon">
+                    <IconSun />
+                </div>
                 <h1>{config.appName}</h1>
-                <p>Sign in to your {config.appSubtitle.toLowerCase()}</p>
+                <p>Lead management built for solar service teams. Track inquiries, update pipeline status, and send outreach — all from one place.</p>
+                <ul className="auth-features">
+                    <li>Real-time lead pipeline</li>
+                    <li>One-tap call & text</li>
+                    <li>AI-generated outreach</li>
+                </ul>
+            </div>
+
+            <form className="auth-form" onSubmit={handleSubmit}>
+                <div className="auth-form__header">
+                    <h2>Welcome back</h2>
+                    <p>Sign in to {config.appSubtitle}</p>
+                </div>
 
                 <label htmlFor="password">Password</label>
                 <input
@@ -44,20 +60,19 @@ export default function Login({ onLogin }: LoginProps) {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
+                    placeholder="Enter team password"
                     autoComplete="current-password"
                     autoFocus
                 />
 
-                {error && <p className="login-error">{error}</p>}
+                {error && <p className="auth-error">{error}</p>}
 
                 <button
                     type="submit"
-                    className="btn btn-primary"
-                    style={{ width: "100%", marginTop: 20 }}
+                    className="btn btn-primary btn-full btn-lg"
                     disabled={loading || !password.trim()}
                 >
-                    {loading ? "Signing in..." : "Sign In"}
+                    {loading ? "Signing in..." : "Sign in"}
                 </button>
             </form>
         </div>

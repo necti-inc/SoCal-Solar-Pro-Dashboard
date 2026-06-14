@@ -1,20 +1,43 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { fetchLeads, fetchStats, isAuthenticated, logout } from "@/lib/api"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { fetchLeads, fetchStats, deleteLead, isAuthenticated, logout } from "@/lib/api"
 import { config } from "@/lib/config"
+import { getFollowUpAlerts } from "@/lib/followups"
 import type { Lead, LeadStats } from "@/lib/types"
 import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
+import ActionAlerts from "./ActionAlerts"
 import Login from "./Login"
 import LeadCard from "./LeadCard"
 import LeadDetail from "./LeadDetail"
+import PipelineBoard from "./PipelineBoard"
+import StatsOverview, { StatsView } from "./StatsOverview"
+import {
+    IconLeads,
+    IconList,
+    IconLogout,
+    IconPipeline,
+    IconSearch,
+    IconStats,
+    IconSun,
+} from "./icons"
 
-type View = "leads" | "pipeline" | "stats"
+type View = "leads" | "stats"
+type LeadsLayout = "pipeline" | "list"
+
+const LAYOUT_KEY = "ssp_leads_layout"
+
+const NAV_ITEMS: { id: View; label: string; Icon: typeof IconLeads }[] = [
+    { id: "leads", label: "Leads", Icon: IconLeads },
+    { id: "stats", label: "Analytics", Icon: IconStats },
+]
 
 export default function Dashboard() {
     const [authed, setAuthed] = useState(false)
     const [mounted, setMounted] = useState(false)
     const [view, setView] = useState<View>("leads")
+    const [leadsLayout, setLeadsLayout] = useState<LeadsLayout>("list")
+    const [layoutReady, setLayoutReady] = useState(false)
     const [leads, setLeads] = useState<Lead[]>([])
     const [stats, setStats] = useState<LeadStats | null>(null)
     const [loading, setLoading] = useState(true)
@@ -26,19 +49,30 @@ export default function Dashboard() {
     useEffect(() => {
         setMounted(true)
         setAuthed(isAuthenticated())
+
+        const saved = localStorage.getItem(LAYOUT_KEY) as LeadsLayout | null
+        if (saved === "pipeline" || saved === "list") {
+            setLeadsLayout(saved)
+        } else {
+            setLeadsLayout(window.innerWidth >= 768 ? "pipeline" : "list")
+        }
+        setLayoutReady(true)
     }, [])
 
     const showToast = useCallback((msg: string) => {
         setToast(msg)
-        setTimeout(() => setToast(""), 2500)
+        setTimeout(() => setToast(""), 2800)
     }, [])
 
     const loadData = useCallback(async () => {
         setLoading(true)
         try {
+            const useStatusFilter =
+                view === "leads" && leadsLayout === "list" && statusFilter !== "all"
+
             const [leadsData, statsData] = await Promise.all([
                 fetchLeads({
-                    status: statusFilter !== "all" ? statusFilter : undefined,
+                    status: useStatusFilter ? statusFilter : undefined,
                     search: search || undefined,
                 }),
                 fetchStats(),
@@ -52,11 +86,11 @@ export default function Dashboard() {
         } finally {
             setLoading(false)
         }
-    }, [statusFilter, search])
+    }, [view, leadsLayout, statusFilter, search])
 
     useEffect(() => {
-        if (authed) loadData()
-    }, [authed, loadData])
+        if (authed && layoutReady) loadData()
+    }, [authed, layoutReady, loadData])
 
     useEffect(() => {
         if (!authed) return
@@ -66,253 +100,287 @@ export default function Dashboard() {
 
     const handleLeadUpdate = (updated: Lead) => {
         setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)))
-        setSelectedLead(updated)
+        if (selectedLead?.id === updated.id) setSelectedLead(updated)
         fetchStats().then(setStats).catch(() => {})
+        showToast(`Updated ${updated.fullname.split(" ")[0]}`)
     }
 
-    if (!mounted) return null
+    const handleLeadDelete = useCallback(
+        async (lead: Lead) => {
+            const firstName = lead.fullname.split(" ")[0]
+            if (
+                !window.confirm(
+                    `Delete ${lead.fullname}? This permanently removes them from your leads.`
+                )
+            ) {
+                return
+            }
 
-    if (!authed) {
-        return <Login onLogin={() => setAuthed(true)} />
+            try {
+                await deleteLead(lead.id)
+                setLeads((prev) => prev.filter((l) => l.id !== lead.id))
+                if (selectedLead?.id === lead.id) setSelectedLead(null)
+                fetchStats().then(setStats).catch(() => {})
+                showToast(`Deleted ${firstName}`)
+            } catch {
+                showToast("Failed to delete lead")
+            }
+        },
+        [selectedLead, showToast]
+    )
+
+    const followUpAlerts = useMemo(() => getFollowUpAlerts(leads), [leads])
+    const alertKinds = useMemo(
+        () => new Map(followUpAlerts.map((a) => [a.lead.id, a.kind])),
+        [followUpAlerts]
+    )
+    const alertCount = followUpAlerts.length
+
+    if (!mounted) {
+        return (
+            <div className="app-loading">
+                <div className="spinner" />
+            </div>
+        )
     }
+    if (!authed) return <Login onLogin={() => setAuthed(true)} />
+
+    const newCount = stats?.byStatus.new || 0
+    const badgeCount = Math.max(newCount, alertCount)
 
     return (
-        <div className="app-shell">
-            <header className="app-header">
-                <div>
-                    <h1>{config.appName}</h1>
-                    <div className="subtitle">{config.appSubtitle}</div>
+        <div className="app">
+            <aside className="sidebar">
+                <div className="sidebar__brand">
+                    <div className="sidebar__logo">
+                        <IconSun />
+                    </div>
+                    <div>
+                        <div className="sidebar__name">{config.appName}</div>
+                        <div className="sidebar__tag">{config.appSubtitle}</div>
+                    </div>
                 </div>
-                <nav className="desktop-nav">
-                    {(["leads", "pipeline", "stats"] as View[]).map((v) => (
+
+                <nav className="sidebar__nav">
+                    {NAV_ITEMS.map(({ id, label, Icon }) => (
                         <button
-                            key={v}
-                            className={`nav-tab ${view === v ? "active" : ""}`}
-                            onClick={() => setView(v)}
+                            key={id}
+                            className={`sidebar__link ${view === id ? "sidebar__link--active" : ""}`}
+                            onClick={() => setView(id)}
                         >
-                            {v.charAt(0).toUpperCase() + v.slice(1)}
+                            <Icon />
+                            <span>{label}</span>
+                            {id === "leads" && badgeCount > 0 && (
+                                <span className="sidebar__badge">{badgeCount}</span>
+                            )}
                         </button>
                     ))}
                 </nav>
+
                 <button
-                    className="btn btn-secondary"
-                    style={{ padding: "8px 14px", minHeight: "auto", fontSize: 13 }}
+                    className="sidebar__logout"
                     onClick={() => {
                         logout()
                         setAuthed(false)
                     }}
                 >
-                    Sign Out
+                    <IconLogout />
+                    Sign out
                 </button>
-            </header>
+            </aside>
 
-            <main className="app-main">
-                {stats && (
-                    <div className="stats-row">
-                        <div className="stat-card">
-                            <div className="value">{stats.byStatus.new || 0}</div>
-                            <div className="label">New</div>
+            <div className="main">
+                <header className="topbar">
+                    <div className="topbar__left">
+                        <div className="topbar__mobile-brand">
+                            <IconSun />
+                            <span>{config.appName}</span>
                         </div>
-                        <div className="stat-card">
-                            <div className="value">{stats.today}</div>
-                            <div className="label">Today</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="value">{stats.total}</div>
-                            <div className="label">Total</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="value">{stats.thisWeek}</div>
-                            <div className="label">This Week</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="value">{stats.byStatus.won || 0}</div>
-                            <div className="label">Won</div>
-                        </div>
+                        <h1 className="topbar__title">
+                            {view === "leads" && "Leads"}
+                            {view === "stats" && "Analytics"}
+                        </h1>
+                        {stats && view === "leads" && (
+                            <p className="topbar__subtitle">
+                                {stats.total} total · {stats.today} today
+                                {alertCount > 0 && ` · ${alertCount} need attention`}
+                            </p>
+                        )}
                     </div>
-                )}
-
-                {view === "pipeline" ? (
-                    <div>
-                        {PIPELINE_STATUSES.map((status) => {
-                            const statusLeads = leads.filter((l) => l.status === status)
-                            if (statusLeads.length === 0) return null
-                            const cfg = STATUS_CONFIG[status]
-                            return (
-                                <div key={status} style={{ marginBottom: 20 }}>
-                                    <h3
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: 700,
-                                            color: cfg.color,
-                                            marginBottom: 8,
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.04em",
-                                        }}
-                                    >
-                                        {cfg.label} ({statusLeads.length})
-                                    </h3>
-                                    <div className="lead-list">
-                                        {statusLeads.map((lead) => (
-                                            <LeadCard
-                                                key={lead.id}
-                                                lead={lead}
-                                                onClick={() => setSelectedLead(lead)}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                ) : view === "stats" ? (
-                    <div>
-                        <h3
-                            style={{
-                                fontSize: 14,
-                                fontWeight: 700,
-                                marginBottom: 16,
-                                color: "var(--text-secondary)",
-                            }}
-                        >
-                            BY STATUS
-                        </h3>
-                        {stats &&
-                            PIPELINE_STATUSES.map((s) => (
-                                <div
-                                    key={s}
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        padding: "12px 0",
-                                        borderBottom: "1px solid var(--border)",
-                                    }}
-                                >
-                                    <span style={{ fontWeight: 600 }}>
-                                        {STATUS_CONFIG[s].label}
-                                    </span>
-                                    <span
-                                        style={{
-                                            fontWeight: 700,
-                                            color: STATUS_CONFIG[s].color,
-                                        }}
-                                    >
-                                        {stats.byStatus[s] || 0}
-                                    </span>
-                                </div>
-                            ))}
-
-                        <h3
-                            style={{
-                                fontSize: 14,
-                                fontWeight: 700,
-                                margin: "24px 0 16px",
-                                color: "var(--text-secondary)",
-                            }}
-                        >
-                            BY SOURCE
-                        </h3>
-                        {stats &&
-                            Object.entries(stats.bySource).map(([source, count]) => (
-                                <div
-                                    key={source}
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        padding: "12px 0",
-                                        borderBottom: "1px solid var(--border)",
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            fontWeight: 600,
-                                            textTransform: "capitalize",
-                                        }}
-                                    >
-                                        {source}
-                                    </span>
-                                    <span style={{ fontWeight: 700 }}>{count}</span>
-                                </div>
-                            ))}
-                    </div>
-                ) : (
-                    <>
-                        <div className="search-bar">
-                            <span className="search-icon">🔍</span>
-                            <input
-                                type="search"
-                                placeholder="Search name, phone, email, city..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="filter-bar">
-                            <button
-                                className={`filter-chip ${statusFilter === "all" ? "active" : ""}`}
-                                onClick={() => setStatusFilter("all")}
-                            >
-                                All
-                            </button>
-                            {PIPELINE_STATUSES.map((s) => (
+                    <div className="topbar__actions">
+                        {view === "leads" && (
+                            <div className="view-toggle">
                                 <button
-                                    key={s}
-                                    className={`filter-chip ${statusFilter === s ? "active" : ""}`}
-                                    onClick={() => setStatusFilter(s)}
+                                    className={`view-toggle__btn ${leadsLayout === "pipeline" ? "view-toggle__btn--active" : ""}`}
+                                    onClick={() => {
+                                        setLeadsLayout("pipeline")
+                                        localStorage.setItem(LAYOUT_KEY, "pipeline")
+                                    }}
+                                    title="Pipeline view"
                                 >
-                                    {STATUS_CONFIG[s].label}
-                                    {stats ? ` (${stats.byStatus[s] || 0})` : ""}
+                                    <IconPipeline />
+                                    <span>Board</span>
                                 </button>
-                            ))}
-                        </div>
-
-                        {loading ? (
-                            <div className="loading">
-                                <div className="spinner" />
-                                <p style={{ marginTop: 12 }}>Loading leads...</p>
-                            </div>
-                        ) : leads.length === 0 ? (
-                            <div className="empty-state">
-                                <div className="icon">📋</div>
-                                <p>No leads found</p>
-                            </div>
-                        ) : (
-                            <div className="lead-list">
-                                {leads.map((lead) => (
-                                    <LeadCard
-                                        key={lead.id}
-                                        lead={lead}
-                                        onClick={() => setSelectedLead(lead)}
-                                    />
-                                ))}
+                                <button
+                                    className={`view-toggle__btn ${leadsLayout === "list" ? "view-toggle__btn--active" : ""}`}
+                                    onClick={() => {
+                                        setLeadsLayout("list")
+                                        localStorage.setItem(LAYOUT_KEY, "list")
+                                    }}
+                                    title="List view"
+                                >
+                                    <IconList />
+                                    <span>List</span>
+                                </button>
                             </div>
                         )}
-                    </>
-                )}
-            </main>
+                        <button
+                            className="topbar__refresh btn-ghost"
+                            onClick={loadData}
+                            disabled={loading}
+                        >
+                            {loading ? "Refreshing..." : "Refresh"}
+                        </button>
+                    </div>
+                </header>
 
-            <nav className="bottom-nav">
-                <button
-                    className={`nav-item ${view === "leads" ? "active" : ""}`}
-                    onClick={() => setView("leads")}
-                >
-                    <span className="nav-icon">📋</span>
-                    Leads
-                </button>
-                <button
-                    className={`nav-item ${view === "pipeline" ? "active" : ""}`}
-                    onClick={() => setView("pipeline")}
-                >
-                    <span className="nav-icon">📊</span>
-                    Pipeline
-                </button>
-                <button
-                    className={`nav-item ${view === "stats" ? "active" : ""}`}
-                    onClick={() => setView("stats")}
-                >
-                    <span className="nav-icon">📈</span>
-                    Stats
-                </button>
+                {view === "leads" && (
+                    <ActionAlerts
+                        alerts={followUpAlerts}
+                        onSelect={setSelectedLead}
+                    />
+                )}
+
+                <div className={`content ${view === "leads" && leadsLayout === "pipeline" ? "content--wide" : ""}`}>
+                    {stats && view === "leads" && (
+                        <StatsOverview stats={stats} compact={leadsLayout === "pipeline"} />
+                    )}
+
+                    {view === "stats" ? (
+                        stats ? (
+                            <StatsView stats={stats} />
+                        ) : (
+                            <div className="loading-state">
+                                <div className="spinner" />
+                            </div>
+                        )
+                    ) : leadsLayout === "pipeline" ? (
+                        loading ? (
+                            <div className="loading-state">
+                                <div className="spinner" />
+                                <p>Loading pipeline...</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="toolbar toolbar--pipeline">
+                                    <div className="search-input">
+                                        <IconSearch />
+                                        <input
+                                            type="search"
+                                            placeholder="Search leads..."
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <PipelineBoard
+                                    leads={leads}
+                                    onSelect={setSelectedLead}
+                                    onLeadUpdate={handleLeadUpdate}
+                                    onLeadDelete={handleLeadDelete}
+                                    showToast={showToast}
+                                    alertKinds={alertKinds}
+                                />
+                            </>
+                        )
+                    ) : (
+                        <>
+                            <div className="leads-controls">
+                                <div className="toolbar">
+                                    <div className="search-input">
+                                        <IconSearch />
+                                        <input
+                                            type="search"
+                                            placeholder="Search leads..."
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="filter-pills">
+                                    <button
+                                        className={`pill ${statusFilter === "all" ? "pill--active" : ""}`}
+                                        onClick={() => setStatusFilter("all")}
+                                    >
+                                        All
+                                    </button>
+                                    {PIPELINE_STATUSES.map((s) => (
+                                        <button
+                                            key={s}
+                                            className={`pill ${statusFilter === s ? "pill--active" : ""}`}
+                                            onClick={() => setStatusFilter(s)}
+                                            style={
+                                                statusFilter === s
+                                                    ? {
+                                                          background: STATUS_CONFIG[s].bg,
+                                                          color: STATUS_CONFIG[s].color,
+                                                          borderColor: STATUS_CONFIG[s].color,
+                                                      }
+                                                    : undefined
+                                            }
+                                        >
+                                            {STATUS_CONFIG[s].label}
+                                            {stats ? ` ${stats.byStatus[s] || 0}` : ""}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {loading ? (
+                                <div className="loading-state">
+                                    <div className="spinner" />
+                                    <p>Loading leads...</p>
+                                </div>
+                            ) : leads.length === 0 ? (
+                                <div className="empty-state">
+                                    <div className="empty-state__icon">☀️</div>
+                                    <h3>No leads found</h3>
+                                    <p>New inquiries from your website will appear here.</p>
+                                </div>
+                            ) : (
+                                <div className="leads-grid">
+                                    {leads.map((lead) => (
+                                        <LeadCard
+                                            key={lead.id}
+                                            lead={lead}
+                                            onClick={() => setSelectedLead(lead)}
+                                            onStatusChange={handleLeadUpdate}
+                                            onDelete={handleLeadDelete}
+                                            alertKind={followUpAlerts.find((a) => a.lead.id === lead.id)?.kind}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <nav className="mobile-nav">
+                {NAV_ITEMS.map(({ id, label, Icon }) => (
+                    <button
+                        key={id}
+                        className={`mobile-nav__item ${view === id ? "mobile-nav__item--active" : ""}`}
+                        onClick={() => setView(id)}
+                    >
+                        <Icon />
+                        <span>{label}</span>
+                        {id === "leads" && badgeCount > 0 && (
+                            <span className="mobile-nav__badge">{badgeCount}</span>
+                        )}
+                    </button>
+                ))}
             </nav>
 
             {selectedLead && (

@@ -1,11 +1,43 @@
 export type LeadStatus =
     | "new"
     | "contacted"
-    | "follow_up"
-    | "qualified"
+    | "customer_scheduled"
     | "scheduled"
-    | "won"
+    | "completed"
     | "lost"
+
+const LEGACY_STATUS_MAP: Record<string, LeadStatus> = {
+    follow_up: "contacted",
+    qualified: "contacted",
+    won: "completed",
+}
+
+export const STATUS_CONFIG: Record<
+    LeadStatus,
+    { label: string; color: string; bg: string }
+> = {
+    new: { label: "New", color: "#068DD4", bg: "#E8F6FC" },
+    contacted: { label: "Contacted", color: "#7C3AED", bg: "#F3E8FF" },
+    customer_scheduled: { label: "Customer Scheduled", color: "#0D9488", bg: "#CCFBF1" },
+    scheduled: { label: "Scheduled", color: "#2563EB", bg: "#DBEAFE" },
+    completed: { label: "Completed", color: "#16A34A", bg: "#DCFCE7" },
+    lost: { label: "Lost", color: "#6B7280", bg: "#F3F4F6" },
+}
+
+export const PIPELINE_STATUSES: LeadStatus[] = [
+    "new",
+    "contacted",
+    "customer_scheduled",
+    "scheduled",
+    "completed",
+    "lost",
+]
+
+export function normalizeStatus(status?: string | null): LeadStatus {
+    if (!status) return "new"
+    if (status in STATUS_CONFIG) return status as LeadStatus
+    return LEGACY_STATUS_MAP[status] || "new"
+}
 
 export interface Lead {
     id: string
@@ -32,6 +64,9 @@ export interface Lead {
     generatedMessage?: string | null
     messageGeneratedAt?: string | null
     messageStatus?: string | null
+    scheduledDate?: string | null
+    scheduledAt?: string | null
+    calendarEventId?: string | null
     createdAt?: string | null
     updatedAt?: string | null
 }
@@ -43,26 +78,3 @@ export interface LeadStats {
     today: number
     thisWeek: number
 }
-
-export const STATUS_CONFIG: Record<
-    LeadStatus,
-    { label: string; color: string; bg: string }
-> = {
-    new: { label: "New", color: "#068DD4", bg: "#E8F6FC" },
-    contacted: { label: "Contacted", color: "#7C3AED", bg: "#F3E8FF" },
-    follow_up: { label: "Follow Up", color: "#D97706", bg: "#FEF3C7" },
-    qualified: { label: "Qualified", color: "#059669", bg: "#D1FAE5" },
-    scheduled: { label: "Scheduled", color: "#2563EB", bg: "#DBEAFE" },
-    won: { label: "Won", color: "#16A34A", bg: "#DCFCE7" },
-    lost: { label: "Lost", color: "#6B7280", bg: "#F3F4F6" },
-}
-
-export const PIPELINE_STATUSES: LeadStatus[] = [
-    "new",
-    "contacted",
-    "follow_up",
-    "qualified",
-    "scheduled",
-    "won",
-    "lost",
-]
