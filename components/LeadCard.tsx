@@ -105,6 +105,9 @@ export default function LeadCard({
                     </div>
                     <p className="lead-card__meta">
                         {lead.city || "SoCal"} · {lead.numberofpanels} panels
+                        {lead.status === "customer_scheduled" && lead.scheduledDate && (
+                            <> · {new Date(lead.scheduledDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</>
+                        )}
                     </p>
                     <p className="lead-card__date">
                         Added {formatRelativeDate(lead.createdAt)}
