@@ -50,6 +50,9 @@ export interface Lead {
     numberofpanels: number
     stories: string
     price: number
+    discountApplied?: boolean
+    discountAmount?: number | null
+    discountedPrice?: number | null
     travelDistanceInMiles?: number
     travelDuration?: string
     status: LeadStatus

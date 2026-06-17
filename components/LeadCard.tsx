@@ -7,6 +7,7 @@ import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
 import { updateLead } from "@/lib/api"
 import { formatRelativeDate, getInitials } from "@/lib/utils"
 import LeadContextMenu from "./LeadContextMenu"
+import LeadPrice from "./LeadPrice"
 import StatusBadge from "./StatusBadge"
 import { IconChevron, IconMessage, IconPhone } from "./icons"
 
@@ -100,7 +101,7 @@ export default function LeadCard({
                                     {alertKind === "reach_out" ? "Reach out" : "Follow up"}
                                 </span>
                             )}
-                            <span className="lead-card__price">${lead.price}</span>
+                            <LeadPrice lead={lead} variant="card" />
                         </div>
                     </div>
                     <p className="lead-card__meta">

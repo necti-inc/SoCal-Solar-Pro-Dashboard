@@ -5,6 +5,7 @@ import type { Lead, LeadStatus } from "@/lib/types"
 import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
 import { updateLead, regenerateMessage } from "@/lib/api"
 import { formatPhoneDisplay, formatRelativeDate, getInitials } from "@/lib/utils"
+import LeadPrice from "./LeadPrice"
 import StatusBadge from "./StatusBadge"
 import { IconCopy, IconMessage, IconPhone, IconRefresh, IconX } from "./icons"
 
@@ -115,7 +116,7 @@ export default function LeadDetail({
                     </div>
                     <div className="drawer-hero__price">
                         <span className="drawer-hero__price-label">Estimate</span>
-                        <span className="drawer-hero__price-value">${lead.price}</span>
+                        <LeadPrice lead={lead} variant="hero" />
                     </div>
                 </div>
 
@@ -276,6 +277,14 @@ export default function LeadDetail({
                                 </span>
                             )}
                             {lead.source && <span className="detail-chip">{lead.source}</span>}
+                            {lead.discountApplied &&
+                                lead.discountedPrice != null &&
+                                lead.discountedPrice < lead.price && (
+                                    <span className="detail-chip detail-chip--discount">
+                                        ${lead.discountAmount ?? lead.price - lead.discountedPrice} off
+                                        booked · ${lead.discountedPrice} final
+                                    </span>
+                                )}
                             {lead.utmCampaign && (
                                 <span className="detail-chip">{lead.utmCampaign}</span>
                             )}
