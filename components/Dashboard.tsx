@@ -45,6 +45,7 @@ export default function Dashboard() {
     const [search, setSearch] = useState("")
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
     const [toast, setToast] = useState("")
+    const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
         setMounted(true)
@@ -57,6 +58,11 @@ export default function Dashboard() {
             setLeadsLayout(window.innerWidth >= 768 ? "pipeline" : "list")
         }
         setLayoutReady(true)
+
+        const onResize = () => setIsMobile(window.innerWidth < 768)
+        onResize()
+        window.addEventListener("resize", onResize)
+        return () => window.removeEventListener("resize", onResize)
     }, [])
 
     const showToast = useCallback((msg: string) => {
@@ -67,8 +73,9 @@ export default function Dashboard() {
     const loadData = useCallback(async () => {
         setLoading(true)
         try {
+            const inListView = isMobile || leadsLayout === "list"
             const useStatusFilter =
-                view === "leads" && leadsLayout === "list" && statusFilter !== "all"
+                view === "leads" && inListView && statusFilter !== "all"
 
             const [leadsData, statsData] = await Promise.all([
                 fetchLeads({
@@ -86,7 +93,7 @@ export default function Dashboard() {
         } finally {
             setLoading(false)
         }
-    }, [view, leadsLayout, statusFilter, search])
+    }, [view, leadsLayout, isMobile, statusFilter, search])
 
     useEffect(() => {
         if (authed && layoutReady) loadData()
@@ -135,6 +142,7 @@ export default function Dashboard() {
         [followUpAlerts]
     )
     const alertCount = followUpAlerts.length
+    const effectiveLayout: LeadsLayout = isMobile ? "list" : leadsLayout
 
     if (!mounted) {
         return (
@@ -192,13 +200,14 @@ export default function Dashboard() {
             <div className="main">
                 <header className="topbar">
                     <div className="topbar__left">
-                        <div className="topbar__mobile-brand">
-                            <IconSun />
-                            <span>{config.appName}</span>
-                        </div>
+                        {!isMobile && (
+                            <div className="topbar__mobile-brand">
+                                <IconSun />
+                                <span>{config.appName}</span>
+                            </div>
+                        )}
                         <h1 className="topbar__title">
-                            {view === "leads" && "Leads"}
-                            {view === "stats" && "Analytics"}
+                            {isMobile ? config.appName : view === "leads" ? "Leads" : "Analytics"}
                         </h1>
                         {stats && view === "leads" && (
                             <p className="topbar__subtitle">
@@ -206,9 +215,12 @@ export default function Dashboard() {
                                 {alertCount > 0 && ` · ${alertCount} need attention`}
                             </p>
                         )}
+                        {view === "stats" && isMobile && (
+                            <p className="topbar__subtitle">Pipeline & source breakdown</p>
+                        )}
                     </div>
                     <div className="topbar__actions">
-                        {view === "leads" && (
+                        {view === "leads" && !isMobile && (
                             <div className="view-toggle">
                                 <button
                                     className={`view-toggle__btn ${leadsLayout === "pipeline" ? "view-toggle__btn--active" : ""}`}
@@ -238,9 +250,22 @@ export default function Dashboard() {
                             className="topbar__refresh btn-ghost"
                             onClick={loadData}
                             disabled={loading}
+                            aria-label={loading ? "Refreshing" : "Refresh leads"}
                         >
-                            {loading ? "Refreshing..." : "Refresh"}
+                            {loading ? "…" : isMobile ? "↻" : "Refresh"}
                         </button>
+                        {isMobile && (
+                            <button
+                                className="topbar__logout-btn icon-btn"
+                                onClick={() => {
+                                    logout()
+                                    setAuthed(false)
+                                }}
+                                aria-label="Sign out"
+                            >
+                                <IconLogout />
+                            </button>
+                        )}
                     </div>
                 </header>
 
@@ -251,9 +276,9 @@ export default function Dashboard() {
                     />
                 )}
 
-                <div className={`content ${view === "leads" && leadsLayout === "pipeline" ? "content--wide" : ""}`}>
+                <div className={`content ${view === "leads" && effectiveLayout === "pipeline" ? "content--wide" : ""}`}>
                     {stats && view === "leads" && (
-                        <StatsOverview stats={stats} compact={leadsLayout === "pipeline"} />
+                        <StatsOverview stats={stats} compact={effectiveLayout === "pipeline"} />
                     )}
 
                     {view === "stats" ? (
@@ -264,7 +289,7 @@ export default function Dashboard() {
                                 <div className="spinner" />
                             </div>
                         )
-                    ) : leadsLayout === "pipeline" ? (
+                    ) : effectiveLayout === "pipeline" ? (
                         loading ? (
                             <div className="loading-state">
                                 <div className="spinner" />
