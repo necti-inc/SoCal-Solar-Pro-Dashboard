@@ -1,34 +1,41 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { fetchLeads, fetchStats, deleteLead, isAuthenticated, logout } from "@/lib/api"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { fetchLeads, fetchLead, fetchStats, deleteLead, isAuthenticated, logout } from "@/lib/api"
 import { config } from "@/lib/config"
 import { getFollowUpAlerts } from "@/lib/followups"
 import type { Lead, LeadStats } from "@/lib/types"
-import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
+import { buildSourceFilterOptions, getActiveSourceLabel } from "@/lib/sources"
+import { filterLeads } from "@/lib/leads"
 import ActionAlerts from "./ActionAlerts"
 import Login from "./Login"
 import LeadCard from "./LeadCard"
 import LeadDetail from "./LeadDetail"
 import PipelineBoard from "./PipelineBoard"
+import SourceFilterBar from "./SourceFilterBar"
 import StatsOverview, { StatsView } from "./StatsOverview"
+import StatusFilterBar from "./StatusFilterBar"
+import TeamQuote from "./TeamQuote"
 import {
     IconLeads,
     IconList,
     IconLogout,
     IconPipeline,
+    IconQuote,
     IconSearch,
     IconStats,
     IconSun,
 } from "./icons"
 
-type View = "leads" | "stats"
+type View = "leads" | "quote" | "stats"
 type LeadsLayout = "pipeline" | "list"
 
 const LAYOUT_KEY = "ssp_leads_layout"
+const SOURCE_FILTER_KEY = "ssp_source_filter"
 
 const NAV_ITEMS: { id: View; label: string; Icon: typeof IconLeads }[] = [
     { id: "leads", label: "Leads", Icon: IconLeads },
+    { id: "quote", label: "Phone Quote", Icon: IconQuote },
     { id: "stats", label: "Analytics", Icon: IconStats },
 ]
 
@@ -42,14 +49,19 @@ export default function Dashboard() {
     const [stats, setStats] = useState<LeadStats | null>(null)
     const [loading, setLoading] = useState(true)
     const [statusFilter, setStatusFilter] = useState("all")
+    const [sourceFilter, setSourceFilter] = useState("all")
     const [search, setSearch] = useState("")
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
     const [toast, setToast] = useState("")
     const [isMobile, setIsMobile] = useState(false)
+    const pendingLeadIdRef = useRef<string | null>(null)
 
     useEffect(() => {
         setMounted(true)
         setAuthed(isAuthenticated())
+
+        const leadId = new URLSearchParams(window.location.search).get("lead")
+        if (leadId) pendingLeadIdRef.current = leadId
 
         const saved = localStorage.getItem(LAYOUT_KEY) as LeadsLayout | null
         if (saved === "pipeline" || saved === "list") {
@@ -58,6 +70,9 @@ export default function Dashboard() {
             setLeadsLayout(window.innerWidth >= 768 ? "pipeline" : "list")
         }
         setLayoutReady(true)
+
+        const savedSource = localStorage.getItem(SOURCE_FILTER_KEY)
+        if (savedSource) setSourceFilter(savedSource)
 
         const onResize = () => setIsMobile(window.innerWidth < 768)
         onResize()
@@ -70,20 +85,10 @@ export default function Dashboard() {
         setTimeout(() => setToast(""), 2800)
     }, [])
 
-    const loadData = useCallback(async () => {
-        setLoading(true)
+    const loadData = useCallback(async (options?: { silent?: boolean }) => {
+        if (!options?.silent) setLoading(true)
         try {
-            const inListView = isMobile || leadsLayout === "list"
-            const useStatusFilter =
-                view === "leads" && inListView && statusFilter !== "all"
-
-            const [leadsData, statsData] = await Promise.all([
-                fetchLeads({
-                    status: useStatusFilter ? statusFilter : undefined,
-                    search: search || undefined,
-                }),
-                fetchStats(),
-            ])
+            const [leadsData, statsData] = await Promise.all([fetchLeads(), fetchStats()])
             setLeads(leadsData)
             setStats(statsData)
         } catch (err) {
@@ -91,9 +96,9 @@ export default function Dashboard() {
                 setAuthed(false)
             }
         } finally {
-            setLoading(false)
+            if (!options?.silent) setLoading(false)
         }
-    }, [view, leadsLayout, isMobile, statusFilter, search])
+    }, [])
 
     useEffect(() => {
         if (authed && layoutReady) loadData()
@@ -101,15 +106,51 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (!authed) return
-        const interval = setInterval(loadData, 30000)
+        const interval = setInterval(() => loadData({ silent: true }), 30000)
         return () => clearInterval(interval)
     }, [authed, loadData])
+
+    useEffect(() => {
+        if (!authed || !layoutReady || loading) return
+
+        const leadId = pendingLeadIdRef.current
+        if (!leadId) return
+
+        const openLeadFromLink = async () => {
+            pendingLeadIdRef.current = null
+            setView("leads")
+
+            const existing = leads.find((lead) => lead.id === leadId)
+            if (existing) {
+                setSelectedLead(existing)
+            } else {
+                try {
+                    const lead = await fetchLead(leadId)
+                    setSelectedLead(lead)
+                    setLeads((prev) =>
+                        prev.some((item) => item.id === lead.id) ? prev : [lead, ...prev]
+                    )
+                } catch {
+                    showToast("Could not open that lead")
+                }
+            }
+
+            window.history.replaceState({}, "", window.location.pathname)
+        }
+
+        openLeadFromLink()
+    }, [authed, layoutReady, loading, leads, showToast])
 
     const handleLeadUpdate = (updated: Lead) => {
         setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)))
         if (selectedLead?.id === updated.id) setSelectedLead(updated)
         fetchStats().then(setStats).catch(() => {})
         showToast(`Updated ${updated.fullname.split(" ")[0]}`)
+    }
+
+    const handleLeadSaved = (lead: Lead) => {
+        setLeads((prev) => [lead, ...prev.filter((item) => item.id !== lead.id)])
+        fetchStats().then(setStats).catch(() => {})
     }
 
     const handleLeadDelete = useCallback(
@@ -136,6 +177,16 @@ export default function Dashboard() {
         [selectedLead, showToast]
     )
 
+    const filteredLeads = useMemo(
+        () =>
+            filterLeads(leads, {
+                statusFilter,
+                sourceFilter,
+                search,
+            }),
+        [leads, statusFilter, sourceFilter, search]
+    )
+
     const followUpAlerts = useMemo(() => getFollowUpAlerts(leads), [leads])
     const alertKinds = useMemo(
         () => new Map(followUpAlerts.map((a) => [a.lead.id, a.kind])),
@@ -143,6 +194,33 @@ export default function Dashboard() {
     )
     const alertCount = followUpAlerts.length
     const effectiveLayout: LeadsLayout = isMobile ? "list" : leadsLayout
+    const sourceFilterOptions = useMemo(
+        () => buildSourceFilterOptions(stats),
+        [stats]
+    )
+    const activeSourceLabel = getActiveSourceLabel(sourceFilter, sourceFilterOptions)
+
+    const handleSourceFilterChange = (next: string) => {
+        setSourceFilter(next)
+        localStorage.setItem(SOURCE_FILTER_KEY, next)
+    }
+
+    const leadsFilters = (
+        <>
+            <SourceFilterBar
+                options={sourceFilterOptions}
+                value={sourceFilter}
+                onChange={handleSourceFilterChange}
+            />
+            {(isMobile || effectiveLayout === "list") && (
+                <StatusFilterBar
+                    value={statusFilter}
+                    stats={stats}
+                    onChange={setStatusFilter}
+                />
+            )}
+        </>
+    )
 
     if (!mounted) {
         return (
@@ -207,11 +285,18 @@ export default function Dashboard() {
                             </div>
                         )}
                         <h1 className="topbar__title">
-                            {isMobile ? config.appName : view === "leads" ? "Leads" : "Analytics"}
+                            {isMobile
+                                ? config.appName
+                                : view === "leads"
+                                  ? "Leads"
+                                  : view === "quote"
+                                    ? "Phone Quote"
+                                    : "Analytics"}
                         </h1>
                         {stats && view === "leads" && (
                             <p className="topbar__subtitle">
                                 {stats.total} total · {stats.today} today
+                                {activeSourceLabel ? ` · ${activeSourceLabel} only` : ""}
                                 {alertCount > 0 && ` · ${alertCount} need attention`}
                             </p>
                         )}
@@ -248,7 +333,7 @@ export default function Dashboard() {
                         )}
                         <button
                             className="topbar__refresh btn-ghost"
-                            onClick={loadData}
+                            onClick={() => loadData()}
                             disabled={loading}
                             aria-label={loading ? "Refreshing" : "Refresh leads"}
                         >
@@ -289,6 +374,8 @@ export default function Dashboard() {
                                 <div className="spinner" />
                             </div>
                         )
+                    ) : view === "quote" ? (
+                        <TeamQuote onLeadSaved={handleLeadSaved} showToast={showToast} />
                     ) : effectiveLayout === "pipeline" ? (
                         loading ? (
                             <div className="loading-state">
@@ -308,8 +395,11 @@ export default function Dashboard() {
                                         />
                                     </div>
                                 </div>
+                                <div className="leads-controls leads-controls--pipeline">
+                                    {leadsFilters}
+                                </div>
                                 <PipelineBoard
-                                    leads={leads}
+                                    leads={filteredLeads}
                                     onSelect={setSelectedLead}
                                     onLeadUpdate={handleLeadUpdate}
                                     onLeadDelete={handleLeadDelete}
@@ -333,33 +423,7 @@ export default function Dashboard() {
                                     </div>
                                 </div>
 
-                                <div className="filter-pills">
-                                    <button
-                                        className={`pill ${statusFilter === "all" ? "pill--active" : ""}`}
-                                        onClick={() => setStatusFilter("all")}
-                                    >
-                                        All
-                                    </button>
-                                    {PIPELINE_STATUSES.map((s) => (
-                                        <button
-                                            key={s}
-                                            className={`pill ${statusFilter === s ? "pill--active" : ""}`}
-                                            onClick={() => setStatusFilter(s)}
-                                            style={
-                                                statusFilter === s
-                                                    ? {
-                                                          background: STATUS_CONFIG[s].bg,
-                                                          color: STATUS_CONFIG[s].color,
-                                                          borderColor: STATUS_CONFIG[s].color,
-                                                      }
-                                                    : undefined
-                                            }
-                                        >
-                                            {STATUS_CONFIG[s].label}
-                                            {stats ? ` ${stats.byStatus[s] || 0}` : ""}
-                                        </button>
-                                    ))}
-                                </div>
+                                {leadsFilters}
                             </div>
 
                             {loading ? (
@@ -367,15 +431,21 @@ export default function Dashboard() {
                                     <div className="spinner" />
                                     <p>Loading leads...</p>
                                 </div>
-                            ) : leads.length === 0 ? (
+                            ) : filteredLeads.length === 0 ? (
                                 <div className="empty-state">
                                     <div className="empty-state__icon">☀️</div>
                                     <h3>No leads found</h3>
-                                    <p>New inquiries from your website will appear here.</p>
+                                    <p>
+                                        {leads.length === 0
+                                            ? "New inquiries from your website will appear here."
+                                            : activeSourceLabel
+                                              ? `No ${activeSourceLabel.toLowerCase()} leads match your filters.`
+                                              : "Try adjusting your search or filters."}
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="leads-grid">
-                                    {leads.map((lead) => (
+                                    {filteredLeads.map((lead) => (
                                         <LeadCard
                                             key={lead.id}
                                             lead={lead}

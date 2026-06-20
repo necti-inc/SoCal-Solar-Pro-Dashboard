@@ -78,6 +78,28 @@ export interface LeadStats {
     total: number
     byStatus: Record<string, number>
     bySource: Record<string, number>
+    sourceSummary?: Array<{ id: string; label: string; count: number }>
     today: number
     thisWeek: number
 }
+
+export interface QuoteBreakdownLine {
+    label: string
+    amount: number
+}
+
+export interface QuoteResult {
+    price: number
+    basePrice: number
+    additionalPanelCost: number
+    travelSurcharge: number
+    travelDistanceInMiles: number
+    travelDuration: string
+    numberofpanels: number
+    stories: string
+    city: string
+    breakdown: QuoteBreakdownLine[]
+    officeAddress: string
+}
+
+export type PhoneQuoteOutcome = "won" | "lost"

@@ -4,6 +4,7 @@ import { useState } from "react"
 import type { FollowUpKind } from "@/lib/followups"
 import type { Lead, LeadStatus } from "@/lib/types"
 import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
+import { formatSourceLabel, getSourceTheme } from "@/lib/sources"
 import { updateLead } from "@/lib/api"
 import { formatRelativeDate, getInitials } from "@/lib/utils"
 import LeadContextMenu from "./LeadContextMenu"
@@ -144,7 +145,21 @@ export default function LeadCard({
                     </div>
                 )}
                 {compact && <StatusBadge status={lead.status} />}
-                {lead.source && <span className="source-pill">{lead.source}</span>}
+                {(() => {
+                    const theme = getSourceTheme(lead.source)
+                    return (
+                        <span
+                            className="source-pill"
+                            style={{
+                                background: theme.bg,
+                                color: theme.color,
+                                borderColor: theme.border,
+                            }}
+                        >
+                            {formatSourceLabel(lead.source)}
+                        </span>
+                    )
+                })()}
             </div>
 
             {!compact && (

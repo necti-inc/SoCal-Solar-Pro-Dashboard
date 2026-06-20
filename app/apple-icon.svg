@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="SoCal Solar Pro">
+  <defs>
+    <linearGradient id="ssp-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#068DD4"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#ssp-gradient)"/>
+  <g transform="translate(30 30)" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="60" cy="60" r="20"/>
+    <path d="M60 10v10"/>
+    <path d="M60 100v10"/>
+    <path d="m24.65 24.65 7.05 7.05"/>
+    <path d="m88.3 88.3 7.05 7.05"/>
+    <path d="M10 60h10"/>
+    <path d="M100 60h10"/>
+    <path d="m31.7 88.3-7.05 7.05"/>
+    <path d="m95.35 24.65-7.05 7.05"/>
+  </g>
+</svg>

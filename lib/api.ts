@@ -1,5 +1,5 @@
 import { config } from "./config"
-import type { Lead, LeadStats } from "./types"
+import type { Lead, LeadStats, PhoneQuoteOutcome, QuoteResult } from "./types"
 import { normalizeStatus } from "./types"
 
 function getApiKey(): string {
@@ -78,6 +78,42 @@ export async function regenerateMessage(
     const data = await request<{ lead: Lead }>(`/leads/${id}/regenerate-message`, {
         method: "POST",
         body: JSON.stringify({ status }),
+    })
+    return { ...data.lead, status: normalizeStatus(data.lead.status) }
+}
+
+export async function calculateQuote(input: {
+    numberofpanels: number
+    stories: string
+    city: string
+}): Promise<QuoteResult> {
+    const data = await request<{ quote: QuoteResult }>("/quote/calculate", {
+        method: "POST",
+        body: JSON.stringify(input),
+    })
+    return data.quote
+}
+
+export async function savePhoneQuote(input: {
+    outcome: PhoneQuoteOutcome
+    fullname: string
+    phonenumber?: string
+    homeaddress?: string
+    email?: string
+    notes?: string
+    numberofpanels: number
+    stories: string
+    city: string
+    price: number
+    basePrice: number
+    additionalPanelCost: number
+    travelSurcharge: number
+    travelDistanceInMiles: number
+    travelDuration: string
+}): Promise<Lead> {
+    const data = await request<{ lead: Lead }>("/leads/phone-quote", {
+        method: "POST",
+        body: JSON.stringify(input),
     })
     return { ...data.lead, status: normalizeStatus(data.lead.status) }
 }

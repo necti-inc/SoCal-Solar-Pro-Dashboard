@@ -1096,6 +1096,56 @@ input:focus, select:focus, textarea:focus {
     border: 1px solid var(--border-light);
 }
 
+.source-pill--phone {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+.source-pill--facebook {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.pill--phone.pill--active {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #047857;
+}
+
+.pill--facebook.pill--active {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.filter-pills--sources {
+    margin-bottom: 0;
+}
+
+.filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-section + .filter-section {
+    margin-top: 4px;
+}
+
+.filter-section__label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.leads-controls--pipeline {
+    margin-bottom: 16px;
+}
+
 .lead-card__actions {
     display: flex;
     gap: 8px;
@@ -2356,5 +2406,171 @@ input:focus, select:focus, textarea:focus {
     .auth-form input {
         font-size: 16px;
         min-height: 48px;
+    }
+}
+
+/* ─── Team phone quote ─── */
+.team-quote {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.team-quote__intro {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.team-quote__subtitle {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 640px;
+}
+
+.team-quote__grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.team-quote__section-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.team-quote__form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.team-quote__result {
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+}
+
+.team-quote__empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    padding: 32px 16px;
+}
+
+.team-quote__empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--brand-light);
+    color: var(--brand);
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.team-quote__price-block {
+    text-align: center;
+    padding: 24px 16px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--brand-light) 0%, #f8fafc 100%);
+    border: 1px solid rgba(6, 141, 212, 0.15);
+    margin-bottom: 20px;
+}
+
+.team-quote__price-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.team-quote__price {
+    font-size: clamp(48px, 8vw, 72px);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--brand-dark);
+    margin: 8px 0;
+}
+
+.team-quote__price-meta {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.team-quote__breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.team-quote__breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.team-quote__breakdown-row--total {
+    padding-top: 12px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.team-quote__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.team-quote__actions .btn {
+    flex: 1;
+    min-width: 140px;
+}
+
+.team-quote__outcome {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+@media (max-width: 900px) {
+    .team-quote__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .team-quote__intro {
+        flex-direction: column;
     }
 }

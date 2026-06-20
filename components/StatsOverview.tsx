@@ -2,6 +2,7 @@
 
 import type { LeadStats } from "@/lib/types"
 import { STATUS_CONFIG, PIPELINE_STATUSES } from "@/lib/types"
+import { formatSourceLabel } from "@/lib/sources"
 
 interface StatsOverviewProps {
     stats: LeadStats
@@ -102,8 +103,8 @@ export function StatsView({ stats }: StatsViewProps) {
                         return (
                             <div key={source} className="bar-row">
                                 <div className="bar-row__header">
-                                    <span className="bar-row__label" style={{ textTransform: "capitalize" }}>
-                                        {source}
+                                    <span className="bar-row__label">
+                                        {formatSourceLabel(source)}
                                     </span>
                                     <span className="bar-row__count">{count}</span>
                                 </div>

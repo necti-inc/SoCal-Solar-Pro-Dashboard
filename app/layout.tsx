@@ -10,6 +10,10 @@ const inter = Inter({
 export const metadata: Metadata = {
     title: "SoCal Solar Pro — Leads",
     description: "Lead management dashboard for SoCal Solar Pro",
+    icons: {
+        icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+        apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+    },
     appleWebApp: {
         capable: true,
         statusBarStyle: "default",

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import type { Lead, LeadStatus } from "@/lib/types"
 import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
+import { formatSourceLabel, getSourceTheme } from "@/lib/sources"
 import { updateLead, regenerateMessage } from "@/lib/api"
 import { formatPhoneDisplay, formatRelativeDate, getInitials } from "@/lib/utils"
 import LeadPrice from "./LeadPrice"
@@ -276,7 +277,21 @@ export default function LeadDetail({
                                     {lead.travelDistanceInMiles} mi · {lead.travelDuration}
                                 </span>
                             )}
-                            {lead.source && <span className="detail-chip">{lead.source}</span>}
+                            {(() => {
+                                const theme = getSourceTheme(lead.source)
+                                return (
+                                    <span
+                                        className="detail-chip"
+                                        style={{
+                                            background: theme.bg,
+                                            color: theme.color,
+                                            borderColor: theme.border,
+                                        }}
+                                    >
+                                        {formatSourceLabel(lead.source)}
+                                    </span>
+                                )
+                            })()}
                             {lead.discountApplied &&
                                 lead.discountedPrice != null &&
                                 lead.discountedPrice < lead.price && (
