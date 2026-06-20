@@ -2502,6 +2502,34 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 20px;
 }
 
+.team-quote__price-block--discounted {
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.team-quote__price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.team-quote__price-original {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.team-quote__discount-note {
+    font-size: 14px;
+    font-weight: 600;
+    color: #059669;
+    margin: 0 0 4px;
+}
+
 .team-quote__price-label {
     display: block;
     font-size: 13px;
@@ -2565,6 +2593,162 @@ input:focus, select:focus, textarea:focus {
     gap: 14px;
 }
 
+.team-quote__outcome-wrap {
+    scroll-margin-top: 24px;
+}
+
+.team-quote__outcome-summary {
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    background: #ecfdf5;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    font-size: 14px;
+    color: #065f46;
+}
+
+.team-quote__reset-offer {
+    margin-top: 8px;
+}
+
+/* Close tools — discount offers */
+.close-tools {
+    margin-bottom: 20px;
+    padding: 18px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px dashed var(--border);
+}
+
+.close-tools__header {
+    margin-bottom: 14px;
+}
+
+.close-tools__header .team-quote__section-title {
+    margin-bottom: 6px;
+}
+
+.close-tools__hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.close-tools__buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.close-tools__btn {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.close-tools__btn--seasonal {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border-color: rgba(249, 115, 22, 0.25);
+}
+
+.close-tools__offers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.close-offer {
+    padding: 16px;
+    border-radius: var(--radius);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.close-offer--active {
+    border-color: rgba(16, 185, 129, 0.45);
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15);
+    background: #f0fdf4;
+}
+
+.close-offer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.close-offer__label {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.close-offer__badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #059669;
+    color: #fff;
+}
+
+.close-offer__prices {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.close-offer__original {
+    font-size: 18px;
+    color: var(--text-secondary);
+    text-decoration: line-through;
+}
+
+.close-offer__discounted {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--brand-dark);
+}
+
+.close-offer__savings {
+    font-size: 13px;
+    font-weight: 700;
+    color: #059669;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.close-offer__reason {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 6px;
+}
+
+.close-offer__pitch {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0 0 12px;
+}
+
+.close-offer__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.close-offer__actions .btn-full {
+    flex: 1;
+    min-width: 140px;
+}
+
 @media (max-width: 900px) {
     .team-quote__grid {
         grid-template-columns: 1fr;
@@ -2572,5 +2756,9 @@ input:focus, select:focus, textarea:focus {
 
     .team-quote__intro {
         flex-direction: column;
+    }
+
+    .close-tools__buttons {
+        grid-template-columns: 1fr;
     }
 }

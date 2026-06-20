@@ -297,7 +297,8 @@ export default function LeadDetail({
                                 lead.discountedPrice < lead.price && (
                                     <span className="detail-chip detail-chip--discount">
                                         ${lead.discountAmount ?? lead.price - lead.discountedPrice} off
-                                        booked · ${lead.discountedPrice} final
+                                        · ${lead.discountedPrice} final
+                                        {lead.discountReason ? ` · ${lead.discountReason}` : ""}
                                     </span>
                                 )}
                             {lead.utmCampaign && (

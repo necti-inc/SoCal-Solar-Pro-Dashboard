@@ -53,6 +53,8 @@ export interface Lead {
     discountApplied?: boolean
     discountAmount?: number | null
     discountedPrice?: number | null
+    discountType?: string | null
+    discountReason?: string | null
     travelDistanceInMiles?: number
     travelDuration?: string
     status: LeadStatus
@@ -103,3 +105,13 @@ export interface QuoteResult {
 }
 
 export type PhoneQuoteOutcome = "won" | "lost"
+
+export interface QuoteCloseOffer {
+    type: "six_month_program" | "seasonal"
+    label: string
+    originalPrice: number
+    discountAmount: number
+    discountedPrice: number
+    reason: string
+    pitch: string
+}

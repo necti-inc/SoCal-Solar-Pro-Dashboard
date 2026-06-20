@@ -1,5 +1,5 @@
 import { config } from "./config"
-import type { Lead, LeadStats, PhoneQuoteOutcome, QuoteResult } from "./types"
+import type { Lead, LeadStats, PhoneQuoteOutcome, QuoteCloseOffer, QuoteResult } from "./types"
 import { normalizeStatus } from "./types"
 
 function getApiKey(): string {
@@ -94,6 +94,27 @@ export async function calculateQuote(input: {
     return data.quote
 }
 
+export async function getSixMonthProgramOffer(price: number): Promise<QuoteCloseOffer> {
+    const data = await request<{ offer: QuoteCloseOffer }>("/quote/six-month-program", {
+        method: "POST",
+        body: JSON.stringify({ price }),
+    })
+    return data.offer
+}
+
+export async function generateSeasonalOffer(input: {
+    price: number
+    city: string
+    numberofpanels: number
+    stories: string
+}): Promise<QuoteCloseOffer> {
+    const data = await request<{ offer: QuoteCloseOffer }>("/quote/seasonal-discount", {
+        method: "POST",
+        body: JSON.stringify(input),
+    })
+    return data.offer
+}
+
 export async function savePhoneQuote(input: {
     outcome: PhoneQuoteOutcome
     fullname: string
@@ -110,6 +131,11 @@ export async function savePhoneQuote(input: {
     travelSurcharge: number
     travelDistanceInMiles: number
     travelDuration: string
+    discountApplied?: boolean
+    discountAmount?: number | null
+    discountedPrice?: number | null
+    discountType?: string | null
+    discountReason?: string | null
 }): Promise<Lead> {
     const data = await request<{ lead: Lead }>("/leads/phone-quote", {
         method: "POST",
