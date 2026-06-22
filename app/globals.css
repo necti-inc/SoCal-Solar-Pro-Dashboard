@@ -1707,6 +1707,32 @@ input:focus, select:focus, textarea:focus {
     line-height: 1.5;
 }
 
+.lead-edit-hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.lead-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.lead-edit-form__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 480px) {
+    .lead-edit-form__row {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ─── Auth page ─── */
 .auth-page {
     min-height: 100dvh;

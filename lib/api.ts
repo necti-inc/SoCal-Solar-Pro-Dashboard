@@ -54,12 +54,27 @@ export async function fetchStats(): Promise<LeadStats> {
     return request<LeadStats>("/leads/stats")
 }
 
-export async function updateLead(
-    id: string,
-    updates: Partial<Pick<Lead, "status" | "notes" | "priority" | "assignedTo">> & {
-        markContacted?: boolean
-    }
-): Promise<Lead> {
+export type LeadUpdatePayload = Partial<
+    Pick<
+        Lead,
+        | "status"
+        | "notes"
+        | "priority"
+        | "assignedTo"
+        | "fullname"
+        | "phonenumber"
+        | "email"
+        | "homeaddress"
+        | "city"
+        | "zipcode"
+        | "numberofpanels"
+        | "stories"
+    >
+> & {
+    markContacted?: boolean
+}
+
+export async function updateLead(id: string, updates: LeadUpdatePayload): Promise<Lead> {
     const data = await request<{ lead: Lead }>(`/leads/${id}`, {
         method: "PATCH",
         body: JSON.stringify(updates),

@@ -1,14 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Lead, LeadStatus } from "@/lib/types"
 import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
 import { formatSourceLabel, getSourceTheme } from "@/lib/sources"
 import { updateLead, regenerateMessage } from "@/lib/api"
-import { formatPhoneDisplay, formatRelativeDate, getInitials } from "@/lib/utils"
+import { formatRelativeDate, getInitials } from "@/lib/utils"
 import LeadPrice from "./LeadPrice"
 import StatusBadge from "./StatusBadge"
 import { IconCopy, IconMessage, IconPhone, IconRefresh, IconX } from "./icons"
+
+const STORY_OPTIONS = ["Single Story", "Two Story", "Ground Mounted"] as const
+
+interface LeadInfoForm {
+    fullname: string
+    phonenumber: string
+    email: string
+    homeaddress: string
+    city: string
+    zipcode: string
+    numberofpanels: string
+    stories: string
+}
+
+function leadToInfoForm(lead: Lead): LeadInfoForm {
+    return {
+        fullname: lead.fullname || "",
+        phonenumber: lead.phonenumber || "",
+        email: lead.email || "",
+        homeaddress: lead.homeaddress || "",
+        city: lead.city || "",
+        zipcode: lead.zipcode || "",
+        numberofpanels: lead.numberofpanels ? String(lead.numberofpanels) : "",
+        stories: lead.stories || "Single Story",
+    }
+}
+
+function infoFormMatchesLead(form: LeadInfoForm, lead: Lead): boolean {
+    const current = leadToInfoForm(lead)
+    return (Object.keys(current) as (keyof LeadInfoForm)[]).every(
+        (key) => form[key] === current[key]
+    )
+}
 
 interface LeadDetailProps {
     lead: Lead
@@ -24,9 +57,16 @@ export default function LeadDetail({
     showToast,
 }: LeadDetailProps) {
     const [notes, setNotes] = useState(lead.notes || "")
+    const [infoForm, setInfoForm] = useState<LeadInfoForm>(() => leadToInfoForm(lead))
     const [saving, setSaving] = useState(false)
+    const [savingInfo, setSavingInfo] = useState(false)
     const [regenerating, setRegenerating] = useState(false)
     const [copied, setCopied] = useState(false)
+
+    useEffect(() => {
+        setNotes(lead.notes || "")
+        setInfoForm(leadToInfoForm(lead))
+    }, [lead])
 
     const handleStatusChange = async (status: LeadStatus) => {
         if (status === lead.status || saving) return
@@ -54,6 +94,46 @@ export default function LeadDetail({
             setSaving(false)
         }
     }
+
+    const handleInfoChange =
+        (field: keyof LeadInfoForm) =>
+        (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+            setInfoForm((prev) => ({ ...prev, [field]: e.target.value }))
+        }
+
+    const handleSaveInfo = async () => {
+        const panels = parseInt(infoForm.numberofpanels, 10)
+        if (!infoForm.fullname.trim()) {
+            showToast("Name is required")
+            return
+        }
+        if (!panels || panels <= 0) {
+            showToast("Enter a valid panel count")
+            return
+        }
+
+        setSavingInfo(true)
+        try {
+            const updated = await updateLead(lead.id, {
+                fullname: infoForm.fullname.trim(),
+                phonenumber: infoForm.phonenumber.trim(),
+                email: infoForm.email.trim(),
+                homeaddress: infoForm.homeaddress.trim(),
+                city: infoForm.city.trim(),
+                zipcode: infoForm.zipcode.trim(),
+                numberofpanels: panels,
+                stories: infoForm.stories,
+            })
+            onUpdate(updated)
+            showToast("Lead info saved")
+        } catch {
+            showToast("Failed to save lead info")
+        } finally {
+            setSavingInfo(false)
+        }
+    }
+
+    const infoDirty = !infoFormMatchesLead(infoForm, lead)
 
     const handleRegenerate = async () => {
         setRegenerating(true)
@@ -241,37 +321,111 @@ export default function LeadDetail({
                         )}
                     </section>
 
-                    {/* Contact cards */}
+                    {/* Customer info — editable */}
                     <section className="drawer-section">
-                        <h3 className="drawer-section__title">Contact</h3>
-                        <div className="info-cards">
-                            <a href={`tel:${phoneDigits}`} className="info-card info-card--link">
-                                <span className="info-card__label">Phone</span>
-                                <span className="info-card__value">{formatPhoneDisplay(lead.phonenumber)}</span>
-                            </a>
-                            <a href={`mailto:${lead.email}`} className="info-card info-card--link">
-                                <span className="info-card__label">Email</span>
-                                <span className="info-card__value">{lead.email}</span>
-                            </a>
-                            <div className="info-card">
-                                <span className="info-card__label">Address</span>
-                                <span className="info-card__value">{lead.homeaddress}</span>
+                        <h3 className="drawer-section__title">Customer info</h3>
+                        <p className="lead-edit-hint">
+                            Add or update the address after you reach out — changes save to this
+                            lead for your whole team.
+                        </p>
+                        <div className="lead-edit-form">
+                            <label className="field">
+                                <span className="field__label">Full name</span>
+                                <input
+                                    type="text"
+                                    value={infoForm.fullname}
+                                    onChange={handleInfoChange("fullname")}
+                                    autoComplete="off"
+                                />
+                            </label>
+                            <label className="field">
+                                <span className="field__label">Phone</span>
+                                <input
+                                    type="tel"
+                                    value={infoForm.phonenumber}
+                                    onChange={handleInfoChange("phonenumber")}
+                                    autoComplete="off"
+                                />
+                            </label>
+                            <label className="field">
+                                <span className="field__label">Email</span>
+                                <input
+                                    type="email"
+                                    value={infoForm.email}
+                                    onChange={handleInfoChange("email")}
+                                    autoComplete="off"
+                                />
+                            </label>
+                            <label className="field">
+                                <span className="field__label">Home address</span>
+                                <input
+                                    type="text"
+                                    value={infoForm.homeaddress}
+                                    onChange={handleInfoChange("homeaddress")}
+                                    placeholder="Add when customer provides it"
+                                    autoComplete="off"
+                                />
+                            </label>
+                            <div className="lead-edit-form__row">
+                                <label className="field">
+                                    <span className="field__label">City</span>
+                                    <input
+                                        type="text"
+                                        value={infoForm.city}
+                                        onChange={handleInfoChange("city")}
+                                        autoComplete="off"
+                                    />
+                                </label>
+                                <label className="field">
+                                    <span className="field__label">ZIP</span>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={infoForm.zipcode}
+                                        onChange={handleInfoChange("zipcode")}
+                                        autoComplete="off"
+                                    />
+                                </label>
                             </div>
-                            <div className="info-card">
-                                <span className="info-card__label">Location</span>
-                                <span className="info-card__value">
-                                    {lead.city}{lead.zipcode ? `, ${lead.zipcode}` : ""}
-                                </span>
+                            <div className="lead-edit-form__row">
+                                <label className="field">
+                                    <span className="field__label">Panels</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        inputMode="numeric"
+                                        value={infoForm.numberofpanels}
+                                        onChange={handleInfoChange("numberofpanels")}
+                                    />
+                                </label>
+                                <label className="field">
+                                    <span className="field__label">Stories</span>
+                                    <select
+                                        value={infoForm.stories}
+                                        onChange={handleInfoChange("stories")}
+                                    >
+                                        {STORY_OPTIONS.map((option) => (
+                                            <option key={option} value={option}>
+                                                {option}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
                             </div>
                         </div>
+                        <button
+                            className="btn btn-primary btn-full"
+                            onClick={handleSaveInfo}
+                            disabled={savingInfo || !infoDirty}
+                        >
+                            {savingInfo ? "Saving..." : "Save customer info"}
+                        </button>
                     </section>
 
-                    {/* Job details */}
+                    {/* Job meta (read-only) */}
                     <section className="drawer-section">
                         <h3 className="drawer-section__title">Job details</h3>
                         <div className="detail-chips">
-                            <span className="detail-chip">{lead.numberofpanels} panels</span>
-                            <span className="detail-chip">{lead.stories}</span>
                             {lead.travelDistanceInMiles != null && lead.travelDistanceInMiles > 0 && (
                                 <span className="detail-chip">
                                     {lead.travelDistanceInMiles} mi · {lead.travelDuration}
