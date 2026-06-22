@@ -71,6 +71,7 @@ export default function LeadDetail({
     const [copied, setCopied] = useState(false)
     const [addressVerified, setAddressVerified] = useState(() => !!lead.homeaddress?.trim())
     const [addressFieldError, setAddressFieldError] = useState("")
+    const [mapsLoadError, setMapsLoadError] = useState("")
 
     const addressInputRef = useRef<HTMLInputElement>(null)
     const addressAutocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
@@ -107,6 +108,7 @@ export default function LeadDetail({
         ensureGoogleMapsLoaded()
             .then(() => {
                 if (cancelled) return
+                setMapsLoadError("")
                 const input = addressInputRef.current
                 if (!input || !window.google?.maps?.places || addressAutocompleteRef.current) {
                     return
@@ -158,6 +160,11 @@ export default function LeadDetail({
             })
             .catch((error) => {
                 console.error("Google Maps failed to load:", error)
+                if (!cancelled) {
+                    setMapsLoadError(
+                        "Address autocomplete is unavailable on this site. Add https://scsp-dashboard.vercel.app/* to your Google Maps API key referrers, confirm NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set in Vercel, then redeploy."
+                    )
+                }
             })
 
         return () => {
@@ -451,9 +458,12 @@ export default function LeadDetail({
                     <section className="drawer-section">
                         <h3 className="drawer-section__title">Customer info</h3>
                         <p className="lead-edit-hint">
-                            Add or update the address after you reach out — changes save to this
-                            lead for your whole team.
+                            Add or update the address after you reach out — start typing and
+                            pick from the Google suggestions.
                         </p>
+                        {mapsLoadError ? (
+                            <p className="lead-address-error">{mapsLoadError}</p>
+                        ) : null}
                         <div className="lead-edit-form">
                             <label className="field">
                                 <span className="field__label">Full name</span>

@@ -31,8 +31,22 @@ function loadScript(url: string): Promise<void> {
         script.src = url
         script.async = true
         script.defer = true
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error("Failed to load Google Maps"))
+        script.onload = () => {
+            if (window.google?.maps?.places) {
+                resolve()
+                return
+            }
+            mapsLoadPromise = null
+            reject(
+                new Error(
+                    "Google Maps Places did not load — check API key env var and domain restrictions"
+                )
+            )
+        }
+        script.onerror = () => {
+            mapsLoadPromise = null
+            reject(new Error("Failed to load Google Maps script"))
+        }
         document.head.appendChild(script)
     })
 }
