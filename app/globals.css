@@ -1733,6 +1733,50 @@ input:focus, select:focus, textarea:focus {
     }
 }
 
+.lead-address-input-wrap {
+    position: relative;
+}
+
+.lead-address-input-wrap input {
+    width: 100%;
+    padding-right: 36px;
+}
+
+.lead-address-input-wrap--verified input {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.15);
+}
+
+.lead-address-check {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #16a34a;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.lead-address-error {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #dc2626;
+}
+
+.lead-address-verified {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 600;
+    color: #16a34a;
+}
+
+/* Google Places dropdown above drawer */
+.pac-container {
+    z-index: 10000 !important;
+}
+
 /* ─── Auth page ─── */
 .auth-page {
     min-height: 100dvh;

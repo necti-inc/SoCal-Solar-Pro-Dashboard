@@ -24,6 +24,7 @@ Copy `.env.local.example` to `.env.local`:
 | `NEXT_PUBLIC_APP_SUBTITLE` | Subtitle (e.g. "Leads Center") |
 | `NEXT_PUBLIC_API_URL` | Leads API cloud function URL |
 | `NEXT_PUBLIC_STORAGE_KEY` | localStorage key for auth token |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps Places (address autocomplete in lead drawer) |
 
 ## Deploy to Vercel
 

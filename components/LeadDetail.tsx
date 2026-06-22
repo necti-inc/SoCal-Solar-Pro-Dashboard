@@ -1,10 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Lead, LeadStatus } from "@/lib/types"
 import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
 import { formatSourceLabel, getSourceTheme } from "@/lib/sources"
 import { updateLead, regenerateMessage } from "@/lib/api"
+import {
+    ensureGoogleMapsLoaded,
+    parseAddressFromPlace,
+    resolveAutocompletePlace,
+    SOCAL_BOUNDS,
+    validateParsedAddress,
+} from "@/lib/googleMaps"
 import { formatRelativeDate, getInitials } from "@/lib/utils"
 import LeadPrice from "./LeadPrice"
 import StatusBadge from "./StatusBadge"
@@ -62,11 +69,107 @@ export default function LeadDetail({
     const [savingInfo, setSavingInfo] = useState(false)
     const [regenerating, setRegenerating] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [addressVerified, setAddressVerified] = useState(() => !!lead.homeaddress?.trim())
+    const [addressFieldError, setAddressFieldError] = useState("")
+
+    const addressInputRef = useRef<HTMLInputElement>(null)
+    const addressAutocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+    const addressSelectingRef = useRef(false)
+    const addressFromListRef = useRef(!!lead.homeaddress?.trim())
 
     useEffect(() => {
         setNotes(lead.notes || "")
         setInfoForm(leadToInfoForm(lead))
+        const hasAddress = !!lead.homeaddress?.trim()
+        setAddressVerified(hasAddress)
+        addressFromListRef.current = hasAddress
+        setAddressFieldError("")
     }, [lead])
+
+    useEffect(() => {
+        const markAutocompleteSelecting = (event: MouseEvent | TouchEvent) => {
+            const target = event.target as HTMLElement | null
+            if (!target?.closest?.(".pac-container")) return
+            addressSelectingRef.current = true
+        }
+
+        document.addEventListener("mousedown", markAutocompleteSelecting)
+        document.addEventListener("touchstart", markAutocompleteSelecting)
+        return () => {
+            document.removeEventListener("mousedown", markAutocompleteSelecting)
+            document.removeEventListener("touchstart", markAutocompleteSelecting)
+        }
+    }, [])
+
+    useEffect(() => {
+        let cancelled = false
+
+        ensureGoogleMapsLoaded()
+            .then(() => {
+                if (cancelled) return
+                const input = addressInputRef.current
+                if (!input || !window.google?.maps?.places || addressAutocompleteRef.current) {
+                    return
+                }
+
+                const autocomplete = new window.google.maps.places.Autocomplete(input, {
+                    componentRestrictions: { country: "us" },
+                    bounds: SOCAL_BOUNDS,
+                    strictBounds: true,
+                    fields: ["address_components", "formatted_address", "place_id"],
+                    types: ["address"],
+                })
+                addressAutocompleteRef.current = autocomplete
+
+                autocomplete.addListener("place_changed", () => {
+                    void (async () => {
+                        addressSelectingRef.current = true
+                        try {
+                            const place = await resolveAutocompletePlace(
+                                autocomplete.getPlace()
+                            )
+                            if (!place?.address_components?.length) return
+
+                            const parsed = parseAddressFromPlace(place)
+                            const validationError = validateParsedAddress(parsed)
+                            if (validationError) {
+                                setAddressVerified(false)
+                                addressFromListRef.current = false
+                                setAddressFieldError(validationError)
+                                return
+                            }
+
+                            setInfoForm((prev) => ({
+                                ...prev,
+                                homeaddress: parsed.fullAddress,
+                                city: parsed.city,
+                                zipcode: parsed.zipcode,
+                            }))
+                            setAddressVerified(true)
+                            addressFromListRef.current = true
+                            setAddressFieldError("")
+                        } finally {
+                            window.setTimeout(() => {
+                                addressSelectingRef.current = false
+                            }, 0)
+                        }
+                    })()
+                })
+            })
+            .catch((error) => {
+                console.error("Google Maps failed to load:", error)
+            })
+
+        return () => {
+            cancelled = true
+            if (addressAutocompleteRef.current && window.google?.maps?.event) {
+                window.google.maps.event.clearInstanceListeners(
+                    addressAutocompleteRef.current
+                )
+                addressAutocompleteRef.current = null
+            }
+        }
+    }, [])
 
     const handleStatusChange = async (status: LeadStatus) => {
         if (status === lead.status || saving) return
@@ -101,14 +204,37 @@ export default function LeadDetail({
             setInfoForm((prev) => ({ ...prev, [field]: e.target.value }))
         }
 
+    const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (addressSelectingRef.current) return
+
+        setInfoForm((prev) => ({
+            ...prev,
+            homeaddress: e.target.value,
+            city: "",
+            zipcode: "",
+        }))
+        setAddressVerified(false)
+        addressFromListRef.current = false
+        setAddressFieldError("")
+    }
+
     const handleSaveInfo = async () => {
         const panels = parseInt(infoForm.numberofpanels, 10)
+        const homeTrim = infoForm.homeaddress.trim()
+        const savedHome = (lead.homeaddress || "").trim()
+        const addressChanged = homeTrim !== savedHome
+
         if (!infoForm.fullname.trim()) {
             showToast("Name is required")
             return
         }
         if (!panels || panels <= 0) {
             showToast("Enter a valid panel count")
+            return
+        }
+        if (homeTrim && addressChanged && !addressFromListRef.current) {
+            showToast("Select the address from Google suggestions")
+            setAddressFieldError("Tap the address from the Google list to confirm.")
             return
         }
 
@@ -358,13 +484,35 @@ export default function LeadDetail({
                             </label>
                             <label className="field">
                                 <span className="field__label">Home address</span>
-                                <input
-                                    type="text"
-                                    value={infoForm.homeaddress}
-                                    onChange={handleInfoChange("homeaddress")}
-                                    placeholder="Add when customer provides it"
-                                    autoComplete="off"
-                                />
+                                <div
+                                    className={`lead-address-input-wrap${
+                                        addressVerified ? " lead-address-input-wrap--verified" : ""
+                                    }`}
+                                >
+                                    <input
+                                        ref={addressInputRef}
+                                        type="text"
+                                        value={infoForm.homeaddress}
+                                        onChange={handleAddressChange}
+                                        placeholder="Start typing, then pick from Google"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                    />
+                                    {addressVerified ? (
+                                        <span className="lead-address-check" aria-hidden>
+                                            ✓
+                                        </span>
+                                    ) : null}
+                                </div>
+                                {addressFieldError ? (
+                                    <p className="lead-address-error">{addressFieldError}</p>
+                                ) : addressVerified && infoForm.homeaddress ? (
+                                    <p className="lead-address-verified">
+                                        ✓ {infoForm.city}
+                                        {infoForm.zipcode ? `, ${infoForm.zipcode}` : ""}
+                                    </p>
+                                ) : null}
                             </label>
                             <div className="lead-edit-form__row">
                                 <label className="field">

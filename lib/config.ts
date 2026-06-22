@@ -5,4 +5,5 @@ export const config = {
         process.env.NEXT_PUBLIC_API_URL ||
         "https://us-central1-socal-solar-pro.cloudfunctions.net/leadsApi",
     storageKey: process.env.NEXT_PUBLIC_STORAGE_KEY || "leads_api_key",
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
 }
