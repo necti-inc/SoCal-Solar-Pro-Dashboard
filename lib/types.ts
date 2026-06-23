@@ -72,6 +72,9 @@ export interface Lead {
     scheduledDate?: string | null
     scheduledAt?: string | null
     calendarEventId?: string | null
+    gorillaDeskCustomerId?: string | null
+    gorillaDeskPushedAt?: string | null
+    gorillaDeskStatus?: string | null
     createdAt?: string | null
     updatedAt?: string | null
 }

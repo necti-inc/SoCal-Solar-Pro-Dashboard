@@ -97,6 +97,23 @@ export async function regenerateMessage(
     return { ...data.lead, status: normalizeStatus(data.lead.status) }
 }
 
+export type PushGorillaDeskResult = {
+    lead: Lead
+    alreadySynced: boolean
+    gorillaDeskCustomerId: string
+}
+
+export async function pushLeadToGorillaDesk(id: string): Promise<PushGorillaDeskResult> {
+    const data = await request<PushGorillaDeskResult>(`/leads/${id}/push-gorilladesk`, {
+        method: "POST",
+        body: JSON.stringify({}),
+    })
+    return {
+        ...data,
+        lead: { ...data.lead, status: normalizeStatus(data.lead.status) },
+    }
+}
+
 export async function calculateQuote(input: {
     numberofpanels: number
     stories: string

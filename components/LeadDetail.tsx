@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import type { Lead, LeadStatus } from "@/lib/types"
 import { PIPELINE_STATUSES, STATUS_CONFIG } from "@/lib/types"
 import { formatSourceLabel, getSourceTheme } from "@/lib/sources"
-import { updateLead, regenerateMessage } from "@/lib/api"
+import { updateLead, regenerateMessage, pushLeadToGorillaDesk } from "@/lib/api"
 import {
     ensureGoogleMapsLoaded,
     parseAddressFromPlace,
@@ -68,6 +68,7 @@ export default function LeadDetail({
     const [saving, setSaving] = useState(false)
     const [savingInfo, setSavingInfo] = useState(false)
     const [regenerating, setRegenerating] = useState(false)
+    const [pushingToGorillaDesk, setPushingToGorillaDesk] = useState(false)
     const [copied, setCopied] = useState(false)
     const [addressVerified, setAddressVerified] = useState(() => !!lead.homeaddress?.trim())
     const [addressFieldError, setAddressFieldError] = useState("")
@@ -304,6 +305,33 @@ export default function LeadDetail({
             showToast("Failed to update")
         } finally {
             setSaving(false)
+        }
+    }
+
+    const isInGorillaDesk = !!lead.gorillaDeskCustomerId
+    const canPushToGorillaDesk =
+        !isInGorillaDesk &&
+        !!lead.fullname?.trim() &&
+        !!lead.phonenumber?.trim() &&
+        !!lead.city?.trim()
+
+    const handlePushToGorillaDesk = async () => {
+        if (pushingToGorillaDesk || isInGorillaDesk || !canPushToGorillaDesk) return
+        setPushingToGorillaDesk(true)
+        try {
+            const result = await pushLeadToGorillaDesk(lead.id)
+            onUpdate(result.lead)
+            showToast(
+                result.alreadySynced
+                    ? "Already in GorillaDesk"
+                    : "Lead pushed to GorillaDesk"
+            )
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : "Failed to push to GorillaDesk"
+            showToast(message)
+        } finally {
+            setPushingToGorillaDesk(false)
         }
     }
 
@@ -616,7 +644,32 @@ export default function LeadDetail({
                             {lead.utmCampaign && (
                                 <span className="detail-chip">{lead.utmCampaign}</span>
                             )}
+                            {isInGorillaDesk && (
+                                <span className="detail-chip detail-chip--success">
+                                    In GorillaDesk
+                                </span>
+                            )}
                         </div>
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-full"
+                            style={{ marginTop: 12 }}
+                            onClick={handlePushToGorillaDesk}
+                            disabled={pushingToGorillaDesk || isInGorillaDesk || !canPushToGorillaDesk}
+                            title={
+                                isInGorillaDesk
+                                    ? "This lead is already in GorillaDesk"
+                                    : !canPushToGorillaDesk
+                                      ? "Add name, phone, and city before pushing"
+                                      : "Create this lead in GorillaDesk"
+                            }
+                        >
+                            {pushingToGorillaDesk
+                                ? "Pushing to GorillaDesk…"
+                                : isInGorillaDesk
+                                  ? "In GorillaDesk ✓"
+                                  : "Push to GorillaDesk"}
+                        </button>
                     </section>
 
                     {/* Notes */}
